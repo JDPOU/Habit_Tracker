@@ -1,0 +1,10 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.HabitTracker" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <item name="colorPrimary">#1F998E</item>
+        <item name="android:statusBarColor">#1F998E</item>
+    </style>
+
+    <style name="Theme.HabitTracker" parent="Base.Theme.HabitTracker" />
+</resources>
