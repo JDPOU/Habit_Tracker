@@ -11,8 +11,9 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar_add"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
+        android:minHeight="?attr/actionBarSize"
         app:title="New Habit"
         app:titleTextColor="?attr/colorOnPrimary"
         app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
@@ -99,6 +100,30 @@
                     android:layout_weight="1"
                     android:text="Monthly" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Pick a Color"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/layout_color_selection"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingVertical="8dp">
+                    <!-- Color circles will be added programmatically or stay here if static -->
+                </LinearLayout>
+            </HorizontalScrollView>
 
             <LinearLayout
                 android:id="@+id/layout_day_selection"

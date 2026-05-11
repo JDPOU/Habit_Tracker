@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.graphics.toColorInt
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
@@ -44,30 +45,52 @@ class AddHabit : AppCompatActivity() {
     private lateinit var chipGroupDays: ChipGroup
     private lateinit var btnSelectTime: Button
     private lateinit var tvSelectedTime: TextView
+    private lateinit var layoutColorSelection: LinearLayout
     
     // State variables
     private var selectedFrequency: String = "Daily"
     private var selectedTime: String = ""
     private var selectedDayOfMonth: Int = 0
+    private var selectedColor: String = "#1F998E" // Default Material Blue
     private val db = FirebaseFirestore.getInstance()
     private lateinit var auth: FirebaseAuth
     private var userId: String? = null
+    private var editingHabit: Habit? = null
 
+    /**
+     * Called when the activity is first created.
+     * Sets up the UI, initializes Firebase, handles intent data for edit mode,
+     * and configures listeners for frequency and time selection.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after
+     * previously being shut down then this Bundle contains the data it most
+     * recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
         setContentView(R.layout.add_habit)
 
-        // Set up edge-to-edge layout padding to account for system bars (status/navigation)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main_add)) { v, insets ->
+        // Adjust for system bars (edge-to-edge)
+        val mainView = findViewById<View>(R.id.main_add)
+        ViewCompat.setOnApplyWindowInsetsListener(mainView) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            
+            // Apply top padding to the toolbar so it's not under the status bar
+            // but its background extends to the top
+            val toolbar = findViewById<Toolbar>(R.id.toolbar_add)
+            toolbar.setPadding(0, systemBars.top, 0, 0)
+            
+            // Apply bottom padding to the root view to avoid overlap with navigation bar
+            v.setPadding(systemBars.left, 0, systemBars.right, systemBars.bottom)
+            
             insets
         }
 
         // Initialize Firebase and retrieve User ID from intent
         auth = Firebase.auth
-        userId = intent.getStringExtra("USER_ID")
+        userId = intent.getStringExtra(Constants.EXTRA_USER_ID)
+        editingHabit = intent.getSerializableExtra(Constants.EXTRA_EDIT_HABIT) as? Habit
 
         // Configure the top toolbar with a back navigation button
         toolbar = findViewById(R.id.toolbar_add)
@@ -84,9 +107,18 @@ class AddHabit : AppCompatActivity() {
         chipGroupDays = findViewById(R.id.chip_group_days)
         btnSelectTime = findViewById(R.id.btn_select_time)
         tvSelectedTime = findViewById(R.id.tv_selected_time)
+        layoutColorSelection = findViewById(R.id.layout_color_selection)
 
-        // Initialize default UI state for "Daily" selection
-        setAllDaysChecked(true)
+        // Set up Color selection
+        setupColorSelection()
+
+        // Initialize UI state based on whether we are adding or editing
+        if (editingHabit != null) {
+            setupEditMode()
+        } else {
+            // Initialize default UI state for "Daily" selection
+            setAllDaysChecked(true)
+        }
 
         // --- Frequency Selection Logic ---
         toggleFrequency.addOnButtonCheckedListener { _, checkedId, isChecked ->
@@ -165,9 +197,128 @@ class AddHabit : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        // Initial check for edit mode
+        if (editingHabit != null) {
+            btnSaveHabit.isEnabled = etHabitName.text.toString().trim().isNotEmpty()
+        }
+
         // Execute save when button is clicked
         btnSaveHabit.setOnClickListener {
             saveHabit()
+        }
+    }
+
+    /**
+     * Pre-fills the UI with data from the habit being edited.
+     */
+    private fun setupEditMode() {
+        val habit = editingHabit ?: return
+        
+        toolbar.title = "Edit Habit"
+        btnSaveHabit.text = "Save Changes"
+        
+        etHabitName.setText(habit.name)
+        etHabitNotes.setText(habit.notes)
+        
+        selectedColor = habit.color
+        refreshColorSelectionUI()
+
+        selectedFrequency = habit.frequency
+        when (selectedFrequency) {
+            "Daily" -> toggleFrequency.check(R.id.btn_daily)
+            "Weekly" -> toggleFrequency.check(R.id.btn_weekly)
+            "Monthly" -> toggleFrequency.check(R.id.btn_monthly)
+        }
+        
+        if (selectedFrequency == "Daily" || selectedFrequency == "Weekly") {
+            layoutDaySelection.visibility = View.VISIBLE
+            for (i in 0 until chipGroupDays.childCount) {
+                val chip = chipGroupDays.getChildAt(i) as Chip
+                chip.isChecked = habit.selectedDays.contains(chip.text.toString())
+            }
+        } else if (selectedFrequency == "Monthly") {
+            layoutDaySelection.visibility = View.GONE
+            if (habit.selectedDays.isNotEmpty()) {
+                selectedDayOfMonth = habit.selectedDays[0].toIntOrNull() ?: 0
+            }
+        }
+        
+        selectedTime = habit.reminderTime
+        if (selectedTime.isNotEmpty()) {
+            if (selectedFrequency == "Monthly" && selectedDayOfMonth > 0) {
+                tvSelectedTime.text = "Every ${selectedDayOfMonth}${getDayOfMonthSuffix(selectedDayOfMonth)} at $selectedTime"
+            } else {
+                tvSelectedTime.text = "Reminder set for $selectedTime"
+            }
+            tvSelectedTime.visibility = View.VISIBLE
+        }
+    }
+
+    /**
+     * Sets up the color selection UI with preset Material colors.
+     */
+    private fun setupColorSelection() {
+        val colors = listOf(
+            "#F44336", // Red
+            "#E91E63", // Pink
+            "#9C27B0", // Purple
+            "#673AB7", // Deep Purple
+            "#3F51B5", // Indigo
+            "#2196F3", // Blue
+            "#03A9F4", // Light Blue
+            "#00BCD4", // Cyan
+            "#009688", // Teal
+            "#4CAF50", // Green
+            "#8BC34A", // Light Green
+            "#CDDC39", // Lime
+            "#FFEB3B", // Yellow
+            "#FFC107", // Amber
+            "#FF9800", // Orange
+            "#FF5722", // Deep Orange
+            "#795548", // Brown
+            "#9E9E9E", // Grey
+            "#607D8B"  // Blue Grey
+        )
+
+        val size = (32 * resources.displayMetrics.density).toInt()
+        val margin = (8 * resources.displayMetrics.density).toInt()
+
+        for (colorHex in colors) {
+            val colorView = View(this)
+            val params = LinearLayout.LayoutParams(size, size)
+            params.setMargins(margin, 0, margin, 0)
+            colorView.layoutParams = params
+            
+            // Set circle background with the specific color
+            val drawable = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_color_circle)?.mutate()
+            if (drawable is android.graphics.drawable.GradientDrawable) {
+                drawable.setColor(colorHex.toColorInt())
+            }
+            colorView.background = drawable
+            colorView.tag = colorHex
+            
+            colorView.setOnClickListener {
+                selectedColor = it.tag as String
+                refreshColorSelectionUI()
+            }
+            
+            layoutColorSelection.addView(colorView)
+        }
+        
+        refreshColorSelectionUI()
+    }
+
+    /**
+     * Refreshes the color selection UI to show which color is currently selected.
+     */
+    private fun refreshColorSelectionUI() {
+        for (i in 0 until layoutColorSelection.childCount) {
+            val view = layoutColorSelection.getChildAt(i)
+            if (view.tag == selectedColor) {
+                view.foreground = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_color_selected)
+            } else {
+                view.foreground = null
+            }
         }
     }
 
@@ -200,6 +351,8 @@ class AddHabit : AppCompatActivity() {
 
     /**
      * Helper to check or uncheck all day chips in the chip group.
+     *
+     * @param checked True to check all chips, false to uncheck.
      */
     private fun setAllDaysChecked(checked: Boolean) {
         for (i in 0 until chipGroupDays.childCount) {
@@ -209,6 +362,9 @@ class AddHabit : AppCompatActivity() {
 
     /**
      * Helper function to return the correct ordinal suffix (st, nd, rd, th) for a day number.
+     *
+     * @param n The day number.
+     * @return The ordinal suffix as a string.
      */
     private fun getDayOfMonthSuffix(n: Int): String {
         if (n in 11..13) return "th"
@@ -265,18 +421,37 @@ class AddHabit : AppCompatActivity() {
             selectedDays.add(selectedDayOfMonth.toString())
         }
 
-        // Generate a new unique document reference in the user's habits subcollection
-        val habitRef = db.collection("users").document(userId!!).collection("habits").document()
+        val habit: Habit
+        val habitRef = if (editingHabit != null) {
+            // Update existing habit
+            db.collection(Constants.COLLECTION_USERS).document(userId!!)
+                .collection(Constants.COLLECTION_HABITS).document(editingHabit!!.id)
+        } else {
+            // Generate a new unique document reference
+            db.collection(Constants.COLLECTION_USERS).document(userId!!)
+                .collection(Constants.COLLECTION_HABITS).document()
+        }
 
-        // Create the Habit data object
-        val habit = Habit(
-            id = habitRef.id,
-            name = habitName,
-            notes = notes,
-            frequency = selectedFrequency,
-            selectedDays = selectedDays,
-            reminderTime = selectedTime
-        )
+        if (editingHabit != null) {
+            habit = editingHabit!!.copy(
+                name = habitName,
+                notes = notes,
+                frequency = selectedFrequency,
+                selectedDays = selectedDays,
+                reminderTime = selectedTime,
+                color = selectedColor
+            )
+        } else {
+            habit = Habit(
+                id = habitRef.id,
+                name = habitName,
+                notes = notes,
+                frequency = selectedFrequency,
+                selectedDays = selectedDays,
+                reminderTime = selectedTime,
+                color = selectedColor
+            )
+        }
 
         // Upload to Firestore
         habitRef.set(habit)
@@ -284,20 +459,23 @@ class AddHabit : AppCompatActivity() {
                 // If a reminder time was set, schedule the notification alarm locally
                 if (habit.reminderTime.isNotEmpty()) {
                     ReminderManager.scheduleReminder(this, habit)
+                } else {
+                    // If no time is set, ensure any previous alarm for this habit is canceled
+                    ReminderManager.cancelReminder(this, habit.id)
                 }
 
-                tvAddStatus.text = "Habit added successfully!"
+                tvAddStatus.text = if (editingHabit != null) "Habit updated successfully!" else "Habit added successfully!"
+                tvAddStatus.setTextColor(Color.rgb(76, 175, 80)) // Material Green 500
                 tvAddStatus.visibility = View.VISIBLE
-                
-                // Navigate back to the home screen after a short delay for feedback
+
+                // Return to the main screen after a short delay
                 Handler(Looper.getMainLooper()).postDelayed({
                     finish()
-                }, 1500)
+                }, 1000)
             }
             .addOnFailureListener { e ->
-                // Provide specific error feedback on failure
                 val errorMsg = e.message ?: "Unknown error"
-                tvAddStatus.text = "Error adding habit: $errorMsg"
+                tvAddStatus.text = "Error saving habit: $errorMsg"
                 tvAddStatus.setTextColor(Color.RED)
                 tvAddStatus.visibility = View.VISIBLE
             }

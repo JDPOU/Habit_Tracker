@@ -3,12 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="8dp"
-    android:layout_marginVertical="4dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="3dp"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="6dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp"
     app:strokeWidth="1dp"
-    app:strokeColor="#EEEEEE">
+    app:strokeColor="#F0F0F0">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,7 +18,7 @@
         <!-- Color indicator strip -->
         <View
             android:id="@+id/view_habit_color"
-            android:layout_width="8dp"
+            android:layout_width="6dp"
             android:layout_height="match_parent"
             android:background="?attr/colorPrimary" />
 
@@ -26,8 +26,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp">
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="16dp">
 
 
             <LinearLayout
@@ -43,7 +43,7 @@
                     android:layout_weight="1"
                     android:text="Habit Name"
                     android:textColor="@android:color/black"
-                    android:textSize="22sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -51,11 +51,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_frequency_label"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="2dp"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
                     android:text="Daily"
                     android:textColor="@android:color/white"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -63,10 +63,10 @@
                 android:id="@+id/tv_habit_time"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="6dp"
                 android:text="Scheduled: 08:00 AM"
-                android:textSize="14sp"
-                android:textColor="#555555"
+                android:textSize="13sp"
+                android:textColor="#616161"
                 android:visibility="gone" />
 
             <TextView
@@ -75,8 +75,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="Streak: 0 days"
-                android:textColor="#E65100"
-                android:textSize="14sp"
+                android:textColor="#F4511E"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
 
@@ -86,18 +86,18 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="Last completed: ..."
-                android:textColor="#666666"
-                android:textSize="14sp" />
+                android:textColor="#757575"
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/tv_habit_notes"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:alpha="0.8"
+                android:alpha="0.7"
                 android:text="Notes: ..."
                 android:textColor="@android:color/black"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="italic"
                 android:visibility="gone" />
 

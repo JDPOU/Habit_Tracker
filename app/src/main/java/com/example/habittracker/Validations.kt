@@ -2,7 +2,8 @@ package com.example.habittracker
 
 /**
  * Utility object containing validation logic for user inputs.
- * Used during registration and login to ensure data integrity before sending to Firebase.
+ * These methods are used during registration and login to ensure data integrity
+ * before attempting to authenticate with Firebase.
  */
 object Validations {
     // Regular expression for validating email format

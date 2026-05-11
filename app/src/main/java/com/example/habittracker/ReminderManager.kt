@@ -24,18 +24,19 @@ object ReminderManager {
         // Only schedule if a reminder time is set
         if (habit.reminderTime.isEmpty()) return
 
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val appContext = context.applicationContext
+        val alarmManager = appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         
         // Intent to trigger the ReminderReceiver
-        val intent = Intent(context, ReminderReceiver::class.java).apply {
-            putExtra("HABIT_ID", habit.id)
-            putExtra("HABIT_NAME", habit.name)
-            putExtra("USER_ID", FirebaseAuth.getInstance().currentUser?.uid)
+        val intent = Intent(appContext, ReminderReceiver::class.java).apply {
+            putExtra(Constants.EXTRA_HABIT_ID, habit.id)
+            putExtra(Constants.EXTRA_HABIT_NAME, habit.name)
+            putExtra(Constants.EXTRA_USER_ID, FirebaseAuth.getInstance().currentUser?.uid)
         }
 
         // PendingIntent for the broadcast receiver
         val pendingIntent = PendingIntent.getBroadcast(
-            context,
+            appContext,
             habit.id.hashCode(),
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -93,12 +94,13 @@ object ReminderManager {
      * @param habitId The unique ID of the habit whose reminder should be canceled.
      */
     fun cancelReminder(context: Context, habitId: String) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, ReminderReceiver::class.java)
+        val appContext = context.applicationContext
+        val alarmManager = appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(appContext, ReminderReceiver::class.java)
         
         // Find the existing PendingIntent (if any)
         val pendingIntent = PendingIntent.getBroadcast(
-            context,
+            appContext,
             habitId.hashCode(),
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE

@@ -16,9 +16,9 @@ import androidx.core.app.NotificationManagerCompat
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val habitId = intent.getStringExtra("HABIT_ID") ?: return
-        val habitName = intent.getStringExtra("HABIT_NAME") ?: "Habit Reminder"
-        val userId = intent.getStringExtra("USER_ID")
+        val habitId = intent.getStringExtra(Constants.EXTRA_HABIT_ID) ?: return
+        val habitName = intent.getStringExtra(Constants.EXTRA_HABIT_NAME) ?: "Habit Reminder"
+        val userId = intent.getStringExtra(Constants.EXTRA_USER_ID)
         
         // Display the notification to the user
         showNotification(context, habitId, habitName, userId)
@@ -27,7 +27,8 @@ class ReminderReceiver : BroadcastReceiver() {
         // This ensures the notification system is recurring.
         if (userId != null) {
             val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            db.collection("users").document(userId).collection("habits")
+            db.collection(Constants.COLLECTION_USERS).document(userId)
+                .collection(Constants.COLLECTION_HABITS)
                 .document(habitId)
                 .get()
                 .addOnSuccessListener { document ->
@@ -69,9 +70,9 @@ class ReminderReceiver : BroadcastReceiver() {
 
         // Intent for the "Mark Completed" action button
         val completeIntent = Intent(context, CompletionActionReceiver::class.java).apply {
-            putExtra("HABIT_ID", habitId)
-            putExtra("HABIT_NAME", habitName)
-            putExtra("USER_ID", userId)
+            putExtra(Constants.EXTRA_HABIT_ID, habitId)
+            putExtra(Constants.EXTRA_HABIT_NAME, habitName)
+            putExtra(Constants.EXTRA_USER_ID, userId)
         }
         val completePendingIntent: PendingIntent = PendingIntent.getBroadcast(
             context, habitId.hashCode() + 1, completeIntent,

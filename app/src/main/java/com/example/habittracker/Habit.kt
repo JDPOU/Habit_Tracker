@@ -1,5 +1,7 @@
 package com.example.habittracker
 
+import java.io.Serializable
+
 /**
  * Data class representing a Habit entity.
  * 
@@ -12,6 +14,7 @@ package com.example.habittracker
  * @property frequency The frequency type (Daily, Weekly, Monthly).
  * @property selectedDays List of days (e.g., "Mon", "Tue") for Daily frequency.
  * @property reminderTime The time for the habit (e.g., "08:00 AM").
+ * @property color Hex color string (e.g., "#4CAF50").
  */
 data class Habit(
     val id: String = "",
@@ -22,5 +25,6 @@ data class Habit(
     val totalCompletions: Int = 0,
     val frequency: String = "Daily",
     val selectedDays: List<String> = emptyList(),
-    val reminderTime: String = ""
-)
+    val reminderTime: String = "",
+    val color: String = "#2196F3" // Default Material Blue
+) : Serializable

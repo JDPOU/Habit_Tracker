@@ -12,6 +12,13 @@ import com.google.firebase.firestore.FirebaseFirestore
  * as AlarmManager alarms are cleared on reboot.
  */
 class BootReceiver : BroadcastReceiver() {
+    /**
+     * Called when the BroadcastReceiver is receiving an Intent broadcast.
+     * Triggers the rescheduling of habit alarms if the system has finished booting.
+     *
+     * @param context The Context in which the receiver is running.
+     * @param intent The Intent being received.
+     */
     override fun onReceive(context: Context, intent: Intent) {
         // Only proceed if the action is boot completed
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
@@ -20,7 +27,8 @@ class BootReceiver : BroadcastReceiver() {
             val db = FirebaseFirestore.getInstance()
 
             // Fetch all habits for the user from Firestore
-            db.collection("users").document(userId).collection("habits")
+            db.collection(Constants.COLLECTION_USERS).document(userId)
+                .collection(Constants.COLLECTION_HABITS)
                 .get()
                 .addOnSuccessListener { result ->
                     val habitList = result.toObjects(Habit::class.java)

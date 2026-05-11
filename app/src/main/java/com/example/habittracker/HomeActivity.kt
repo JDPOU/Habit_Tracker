@@ -1,17 +1,11 @@
 package com.example.habittracker
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
@@ -29,15 +23,14 @@ import java.util.Locale
  * Handles displaying, adding, completing, and deleting habits.
  * It also includes logic to reset habit completion status at the start of a new day.
  */
-class HomeActivity : AppCompatActivity() {
+class HomeActivity : BaseActivity() {
     // UI components
     private lateinit var btnAddHabit: FloatingActionButton
     private lateinit var rvHabits: RecyclerView
     private lateinit var adapter: HabitAdapter
     private lateinit var toolbar: Toolbar
-    private lateinit var drawerLayout: DrawerLayout
     private lateinit var navigationView: NavigationView
-    private lateinit var tvEmptyState: TextView
+    private lateinit var layoutEmptyState: View
 
     // Firebase and Data
     private val db = FirebaseFirestore.getInstance()
@@ -45,8 +38,16 @@ class HomeActivity : AppCompatActivity() {
     private var userId: String? = null
 
     // Standardized date format for internal logic and storage (ISO 8601)
-    private val sdfInternal = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val sdfInternal = SimpleDateFormat(Constants.DATE_FORMAT_INTERNAL, Locale.US)
 
+    /**
+     * Called when the activity is first created.
+     * Initializes Firebase Auth, UI components, navigation drawer, and the habits list.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after
+     * previously being shut down then this Bundle contains the data it most
+     * recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.home_screen)
@@ -61,36 +62,10 @@ class HomeActivity : AppCompatActivity() {
         toolbar = findViewById(R.id.toolbar)
         btnAddHabit = findViewById(R.id.btn_addhabit)
         rvHabits = findViewById(R.id.rv_habits)
-        tvEmptyState = findViewById(R.id.tv_empty_state)
+        layoutEmptyState = findViewById(R.id.layout_empty_state)
 
-        // Set up the top toolbar
-        setSupportActionBar(toolbar)
-
-        // Set up the Navigation Drawer (Hamburger Menu)
-        val toggle = ActionBarDrawerToggle(
-            this, drawerLayout, toolbar,
-            R.string.navigation_drawer_open, R.string.navigation_drawer_close
-        )
-        drawerLayout.addDrawerListener(toggle)
-        toggle.syncState()
-
-        // Handle navigation menu item selections
-        navigationView.setNavigationItemSelectedListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.nav_home -> {
-                    // Already on Home, do nothing
-                }
-                R.id.ic_history -> {
-                    startActivity(Intent(this, History::class.java))
-                }
-                R.id.menu_logout -> {
-                    logout()
-                }
-            }
-            drawerLayout.closeDrawer(GravityCompat.START)
-            true
-        }
-        navigationView.setCheckedItem(R.id.nav_home)
+        // Set up the shared Navigation Drawer
+        setupNavigationDrawer(drawerLayout, navigationView, toolbar, R.id.nav_home)
 
         // Initialize the RecyclerView for habits
         setupRecyclerView()
@@ -98,40 +73,21 @@ class HomeActivity : AppCompatActivity() {
         // Floating Action Button (FAB) to navigate to the AddHabit screen
         btnAddHabit.setOnClickListener {
             val intent = Intent(this, AddHabit::class.java)
-            intent.putExtra("USER_ID", userId)
+            intent.putExtra(Constants.EXTRA_USER_ID, userId)
             startActivity(intent)
         }
     }
 
+    /**
+     * Called when the activity will start interacting with the user.
+     * Refreshes the habits list from Firestore to ensure the UI reflects any changes.
+     */
     override fun onResume() {
         super.onResume()
         // Refresh the habits list from Firestore whenever the activity returns to focus
         if (userId != null) {
             loadHabits()
         }
-    }
-
-    /**
-     * Signs out the user, clears remembered credentials from local storage,
-     * and redirects the user back to the Login screen.
-     */
-    private fun logout() {
-        // Clear remembered credentials from SharedPreferences
-        val sharedPref = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            remove("email")
-            remove("password")
-            apply()
-        }
-
-        // Sign out from Firebase
-        auth.signOut()
-
-        // Navigate back to LoginActivity and clear the activity task stack
-        val intent = Intent(this, Login::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
     }
 
     /**
@@ -144,12 +100,35 @@ class HomeActivity : AppCompatActivity() {
                 toggleHabitCompletion(habit)
             },
             onItemLongClick = { habit ->
-                // Show a deletion confirmation dialog when an item is long-pressed
-                showDeleteConfirmationDialog(habit)
+                // Show a dialog to choose between editing or deleting the habit
+                showHabitOptionsDialog(habit)
             }
         )
         
         rvHabits.adapter = adapter
+    }
+
+    /**
+     * Shows a dialog with options to edit or delete a habit.
+     */
+    private fun showHabitOptionsDialog(habit: Habit) {
+        val options = arrayOf("Edit Habit", "Delete Habit")
+        AlertDialog.Builder(this)
+            .setTitle(habit.name)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> { // Edit
+                        val intent = Intent(this, AddHabit::class.java)
+                        intent.putExtra(Constants.EXTRA_USER_ID, userId)
+                        intent.putExtra(Constants.EXTRA_EDIT_HABIT, habit)
+                        startActivity(intent)
+                    }
+                    1 -> { // Delete
+                        showDeleteConfirmationDialog(habit)
+                    }
+                }
+            }
+            .show()
     }
 
     /**
@@ -176,7 +155,8 @@ class HomeActivity : AppCompatActivity() {
         }
 
         // Update the habit document in Firestore
-        db.collection("users").document(currentUserId).collection("habits")
+        db.collection(Constants.COLLECTION_USERS).document(currentUserId)
+            .collection(Constants.COLLECTION_HABITS)
             .document(habit.id)
             .update(updates)
             .addOnSuccessListener {
@@ -208,7 +188,8 @@ class HomeActivity : AppCompatActivity() {
      */
     private fun deleteHabit(habit: Habit) {
         val currentUserId = userId ?: return
-        db.collection("users").document(currentUserId).collection("habits")
+        db.collection(Constants.COLLECTION_USERS).document(currentUserId)
+            .collection(Constants.COLLECTION_HABITS)
             .document(habit.id)
             .delete()
             .addOnSuccessListener {
@@ -227,7 +208,8 @@ class HomeActivity : AppCompatActivity() {
      */
     private fun loadHabits() {
         val currentUserId = userId ?: return
-        db.collection("users").document(currentUserId).collection("habits")
+        db.collection(Constants.COLLECTION_USERS).document(currentUserId)
+            .collection(Constants.COLLECTION_HABITS)
             .get()
             .addOnSuccessListener { result ->
                 val habitList = result.toObjects(Habit::class.java)
@@ -252,7 +234,7 @@ class HomeActivity : AppCompatActivity() {
                 }
 
                 // Show a helpful message if the list is empty
-                tvEmptyState.visibility = if (habitList.isEmpty()) View.VISIBLE else View.GONE
+                layoutEmptyState.visibility = if (habitList.isEmpty()) View.VISIBLE else View.GONE
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Error loading habits: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -261,10 +243,13 @@ class HomeActivity : AppCompatActivity() {
 
     /**
      * Resets a single habit's 'completed' status in Firestore for the new day.
+     *
+     * @param habit The habit entity to reset.
      */
     private fun resetHabit(habit: Habit) {
         val currentUserId = userId ?: return
-        db.collection("users").document(currentUserId).collection("habits")
+        db.collection(Constants.COLLECTION_USERS).document(currentUserId)
+            .collection(Constants.COLLECTION_HABITS)
             .document(habit.id)
             .update(mapOf(
                 "completed" to false
@@ -273,17 +258,5 @@ class HomeActivity : AppCompatActivity() {
                 // Re-load all habits once the reset is acknowledged by the server
                 loadHabits()
             }
-    }
-
-    /**
-     * Handles the back button to close the side drawer if it's currently open.
-     */
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START)
-        } else {
-            super.onBackPressed()
-        }
     }
 }

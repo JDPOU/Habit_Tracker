@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.graphics.toColorInt
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -25,7 +26,7 @@ class HabitAdapter(
 ) : ListAdapter<Habit, HabitAdapter.HabitViewHolder>(HabitDiffCallback()) {
 
     // Date formats for internal logic and user-facing display
-    private val sdfInternal = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val sdfInternal = SimpleDateFormat(Constants.DATE_FORMAT_INTERNAL, Locale.US)
     private val sdfDisplay = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     /**
@@ -38,6 +39,7 @@ class HabitAdapter(
         val tvFrequency: TextView = view.findViewById(R.id.tv_habit_frequency)
         val tvTime: TextView = view.findViewById(R.id.tv_habit_time)
         val tvStreak: TextView = view.findViewById(R.id.tv_habit_streak)
+        val viewColor: View = view.findViewById(R.id.view_habit_color)
         val card: MaterialCardView = itemView as MaterialCardView
     }
 
@@ -52,6 +54,15 @@ class HabitAdapter(
         val habit = getItem(position)
         holder.tvName.text = habit.name
         
+        // --- 0. Set Habit Color ---
+        val colorInt = try {
+            habit.color.toColorInt()
+        } catch (_: Exception) {
+            "#1F998E".toColorInt()
+        }
+
+        holder.viewColor.setBackgroundColor(colorInt)
+        holder.tvFrequency.backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
         // --- 1. Display Frequency Info ---
         val freqText = when {
             habit.frequency == "Daily" -> {
@@ -171,6 +182,9 @@ class HabitAdapter(
     /**
      * Calculates the current consecutive day streak.
      * A streak is active if the last completion was today or yesterday.
+     *
+     * @param completionHistory List of ISO date strings representing when the habit was completed.
+     * @return The number of consecutive days in the current streak.
      */
     private fun calculateCurrentStreak(completionHistory: List<String>): Int {
         if (completionHistory.isEmpty()) return 0

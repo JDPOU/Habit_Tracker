@@ -42,6 +42,14 @@ class Login : AppCompatActivity() {
     // Firebase Authentication instance
     private lateinit var auth: FirebaseAuth
 
+    /**
+     * Called when the activity is first created.
+     * Sets up UI components, handles auto-login check, and initializes listeners for user input.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after
+     * previously being shut down then this Bundle contains the data it most
+     * recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Enable edge-to-edge display for a modern look
@@ -63,32 +71,21 @@ class Login : AppCompatActivity() {
         tvForgotPW = findViewById(R.id.tv_forgot_password)
         cbRememberMe = findViewById(R.id.cb_remember_me)
 
-        // --- Auto-Login Logic (Remember Me) ---
-        val sharedPref = getSharedPreferences("MyPrefs", MODE_PRIVATE)
-        val rememberedEmail = sharedPref.getString("email", null)
-        val rememberedPassword = sharedPref.getString("password", null)
+        // --- Auto-Login Logic (Firebase Persistent Session) ---
+        val sharedPref = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        
+        // Pre-fill the email field if it was remembered
+        val rememberedEmail = sharedPref.getString(Constants.PREF_EMAIL, null)
+        if (rememberedEmail != null) {
+            etEmail.setText(rememberedEmail)
+            cbRememberMe.isChecked = true
+        }
 
-        if (rememberedEmail != null && rememberedPassword != null) {
-            // If credentials exist in local storage, attempt automatic sign-in
-            setLoadingState(true)
-            auth.signInWithEmailAndPassword(rememberedEmail, rememberedPassword)
-                .addOnCompleteListener(this) { task ->
-                    if (task.isSuccessful) {
-                        // Success: redirect to Home
-                        goToHome(auth.currentUser?.uid)
-                    } else {
-                        // Failure: clear stored credentials as they may be outdated/invalid
-                        setLoadingState(false)
-                        with(sharedPref.edit()) {
-                            remove("email")
-                            remove("password")
-                            apply()
-                        }
-                    }
-                }
-        } else {
-            // Ensure no stale Firebase session exists if "Remember Me" wasn't active
-            auth.signOut()
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            // Firebase remembers the user securely; go directly to Home
+            goToHome(currentUser.uid)
+            return // Skip further initialization if auto-logging in
         }
 
         // Add visual underline to "Forgot Password" to indicate it's clickable
@@ -103,7 +100,7 @@ class Login : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 // Enable button only if both email and password fields have text
                 val email = etEmail.text.toString().trim()
-                val password = etPassword.text.toString().trim()
+                val password = etPassword.text.toString()
                 btnLogin.isEnabled = email.isNotEmpty() && password.isNotEmpty()
             }
             override fun afterTextChanged(s: Editable?) {
@@ -124,7 +121,7 @@ class Login : AppCompatActivity() {
         // --- Login Action ---
         btnLogin.setOnClickListener {
             val email = etEmail.text.toString().trim()
-            val password = etPassword.text.toString().trim()
+            val password = etPassword.text.toString() // Do not trim passwords
 
             // Perform basic validation before calling Firebase
             val emailError = Validations.validateEmail(email)
@@ -146,17 +143,17 @@ class Login : AppCompatActivity() {
                     setLoadingState(false)
                     
                     if (task.isSuccessful) {
-                        // Handle "Remember Me" storage based on checkbox state
+                        // If "Remember Me" is checked, we save the email just to pre-fill it later
+                        // (Passwords are never stored locally for security)
                         if (cbRememberMe.isChecked) {
                             with(sharedPref.edit()) {
-                                putString("email", email)
-                                putString("password", password)
+                                putString(Constants.PREF_EMAIL, email)
                                 apply()
                             }
                         } else {
+                            // If not checked, clear the remembered email
                             with(sharedPref.edit()) {
-                                remove("email")
-                                remove("password")
+                                remove(Constants.PREF_EMAIL)
                                 apply()
                             }
                         }
@@ -164,8 +161,9 @@ class Login : AppCompatActivity() {
                         // Proceed to main screen
                         goToHome(auth.currentUser?.uid)
                     } else {
-                        // Best practice: show a generic failure message for security
-                        tvLoginStatus.text = "Login failed: Invalid email or password."
+                        // Show the actual error message from Firebase to help diagnose the issue
+                        val errorMessage = task.exception?.message ?: "Invalid email or password."
+                        tvLoginStatus.text = "Login failed: $errorMessage"
                         tvLoginStatus.setTextColor(Color.RED)
                         tvLoginStatus.visibility = View.VISIBLE
                     }
@@ -218,7 +216,7 @@ class Login : AppCompatActivity() {
      */
     private fun goToHome(userId: String?) {
         val intent = Intent(this, HomeActivity::class.java)
-        intent.putExtra("USER_ID", userId)
+        intent.putExtra(Constants.EXTRA_USER_ID, userId)
         // Ensure user cannot navigate back to the login screen after successful entry
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

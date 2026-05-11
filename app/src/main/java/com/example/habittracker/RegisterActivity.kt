@@ -46,6 +46,14 @@ class RegisterActivity : AppCompatActivity() {
     // Firebase Authentication instance
     private lateinit var auth: FirebaseAuth
 
+    /**
+     * Called when the activity is first created.
+     * Initializes UI components, Firebase Auth, and sets up input watchers for real-time validation.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after
+     * previously being shut down then this Bundle contains the data it most
+     * recently supplied in onSaveInstanceState(Bundle).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Enable edge-to-edge display
@@ -130,8 +138,8 @@ class RegisterActivity : AppCompatActivity() {
         // --- Registration Execution ---
         btnRegister.setOnClickListener {
             val email = etEmail.text.toString().trim()
-            val password = etPassword.text.toString().trim()
-            val confirmPassword = etConfirm.text.toString().trim()
+            val password = etPassword.text.toString() // Do not trim passwords
+            val confirmPassword = etConfirm.text.toString()
 
             tvRegisterStatus.visibility = View.GONE
             
@@ -206,8 +214,8 @@ class RegisterActivity : AppCompatActivity() {
      */
     private fun updateRegisterButtonState() {
         val email = etEmail.text.toString().trim()
-        val password = etPassword.text.toString().trim()
-        val confirm = etConfirm.text.toString().trim()
+        val password = etPassword.text.toString()
+        val confirm = etConfirm.text.toString()
         btnRegister.isEnabled = email.isNotEmpty() && password.isNotEmpty() && confirm.isNotEmpty()
     }
 
